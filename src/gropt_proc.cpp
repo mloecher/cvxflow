@@ -723,7 +723,7 @@ int main(int argc, char *argv[])
     // }
     // std::cout << "N_in = " << N_in << std::endl;
 
-    int N = (int)N_in + 1;
+    int N = (int)N_in + 2;
 
     int N_slew = 10.0 * 10e-3 / dt;
     N_slew -= 1;
