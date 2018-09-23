@@ -507,101 +507,8 @@ void opt3(int N, double dt,  double *G_in, double *G_out, double *resid, double 
 
 int main(int argc, char *argv[])
 {
-    std::cout << " --- Standalone Execution --- " << argc << std::endl;
+    std::cout << " --- Standalone Spoiler Execution --- " << argc << std::endl;
 
-   
-
-    float resx;
-    float resy;
-    float resz;
-    float venc;
-    char prot_type[32];
-    int Ny = 160;
-    int Nz = 32;
-
-    int mode; 
-    if (argc > 6) {
-        mode = atoi(argv[6]);
-    } else {
-        mode = 1;
-    }
-    std::cout << "mode = " << mode << std::endl;
-
-
-    if (mode == 1) {
-        resx = 2.0;
-        resy = 2.0;
-        resz = 3.0;
-        venc = 160.0;
-        Ny = 160;
-        Nz = 32;
-        sprintf(prot_type, "cardiac");
-    } else if (mode == 2) {
-        resx = 1.0;
-        resy = 1.0;
-        resz = 2.0;
-        venc = 80.0;
-        Ny = 168;
-        Nz = 32;
-        sprintf(prot_type, "neuro");
-    } else if (mode == 3) {
-        resx = 2.2;
-        resy = 2.2;
-        resz = 3.0;
-        venc = 160.0;
-        Ny = 160;
-        Nz = 32;
-        sprintf(prot_type, "cardiac22");
-    } else if (mode == 4) {
-        resx = 3.0;
-        resy = 3.0;
-        resz = 3.0;
-        venc = 160.0;
-        Ny = 160;
-        Nz = 32;
-        sprintf(prot_type, "ph160");
-    } else if (mode == 5) {
-        resx = 3.0;
-        resy = 3.0;
-        resz = 3.0;
-        venc = 80.0;
-        Ny = 160;
-        Nz = 32;
-        sprintf(prot_type, "ph80");
-    } else if (mode == 6) {
-        resx = 0.75;
-        resy = 0.75;
-        resz = 0.75;
-        venc = 80.0;
-        Ny = 160;
-        Nz = 32;
-        sprintf(prot_type, "timing75");
-    } else if (mode == 7) {
-        resx = 1.0;
-        resy = 1.0;
-        resz = 1.0;
-        venc = 80.0;
-        Ny = 160;
-        Nz = 32;
-        sprintf(prot_type, "timing100");
-    } else if (mode == 8) {
-        resx = 1.5;
-        resy = 1.5;
-        resz = 1.5;
-        venc = 80.0;
-        Ny = 160;
-        Nz = 32;
-        sprintf(prot_type, "timing150");
-    } else if (mode == 9) {
-        resx = 2.0;
-        resy = 2.0;
-        resz = 2.0;
-        venc = 80.0;
-        Ny = 160;
-        Nz = 32;
-        sprintf(prot_type, "timing200");
-    }
-    
     double ss_m0;
     if (argc > 1) {
         ss_m0 = atof(argv[1]);
@@ -614,7 +521,7 @@ int main(int argc, char *argv[])
     if (argc > 2) {
         cushion = atof(argv[2]);
     } else {
-        cushion = 0.9f;
+        cushion = 1.0f;
     }
     std::cout << "cushion = " << cushion << std::endl;
 
@@ -634,20 +541,78 @@ int main(int argc, char *argv[])
     }
     std::cout << "gmax = " << gmax << std::endl;
 
-    int N_in; 
+    double smax; 
     if (argc > 5) {
-        N_in = atoi(argv[5]);
+        smax = atof(argv[5]);
     } else {
-        N_in = 8;
+        smax = 200.0f;
     }
-    if (N_in < 0) {
-        N_in = 8;
+    std::cout << "smax = " << smax << std::endl;
+
+    float resx;
+    if (argc > 6) {
+        resx = atof(argv[6]);
+    } else {
+        resx = 2.0f;
     }
+    std::cout << "resx = " << resx << std::endl;
+
+    float resy;
+    if (argc > 7) {
+        resy = atof(argv[7]);
+    } else {
+        resy = 2.0f;
+    }
+    std::cout << "resy = " << resy << std::endl;
+
+    float resz;
+    if (argc > 8) {
+        resz = atof(argv[8]);
+    } else {
+        resz = 3.0f;
+    }
+    std::cout << "resz = " << resz << std::endl;
+
+    float venc;
+    if (argc > 9) {
+        venc = atof(argv[9]);
+    } else {
+        venc = 160.0f;
+    }
+    std::cout << "venc = " << venc << std::endl;
+
+    int Ny;
+    if (argc > 10) {
+        Ny = atoi(argv[10]);
+    } else {
+        Ny = 160;
+    }
+    std::cout << "Ny = " << Ny << std::endl;
+
+    int Nz;
+    if (argc > 11) {
+        Nz = atoi(argv[11]);
+    } else {
+        Nz = 32;
+    }
+    std::cout << "Nz = " << Nz << std::endl;
+
+    int N_in; 
+    N_in = 7;
+    // if (argc > 5) {
+    //     N_in = atoi(argv[5]);
+    // } else {
+    //     N_in = 8;
+    // }
+    // if (N_in < 0) {
+    //     N_in = 8;
+    // }
     std::cout << "N_in = " << N_in << std::endl;
 
     char filename [100];
     int n;
-    n = sprintf (filename, "%s_spoil_%.1f_%d_%d_%d.raw", prot_type, ss_m0, (int)(cushion*100), (int)(tmax*100), (int)gmax);
+    n = sprintf (filename, "grad_spoil_%.2f_%.2f_%.2f_%.2f_ss%.2f_c%.2f_t%.2f_g%.2f_s%.2f_Ny%d_Nz%d.raw", 
+                            resx, resy, resz, venc, ss_m0, cushion, tmax, gmax, smax, Ny, Nz);
     std::ofstream myFile (filename, std::ios::out | std::ios::binary);
 
     std::cout << filename << std::endl;
@@ -662,7 +627,6 @@ int main(int argc, char *argv[])
     std::cout << "moments = " << moments[0] << " " << moments[1] << " " << moments[2] << std::endl;
     
     int n_iter = 3000;
-    double smax = 200.0; 
     double resid = 0.0;
     double dt = 40.0e-3;
 

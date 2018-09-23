@@ -573,6 +573,334 @@ float calc_param_v1(float* coeff, float* moments)
     return param;
 }
 
+
+int main(int argc, char *argv[])
+{
+    std::cout << " --- Standalone Execution --- " << argc << std::endl;
+    
+    double ss_m0;
+    if (argc > 1) {
+        ss_m0 = atof(argv[1]);
+    } else {
+        ss_m0 = 0.0;
+    }
+    std::cout << "ss_m0 = " << ss_m0 << std::endl;
+
+    float cushion;
+    if (argc > 2) {
+        cushion = atof(argv[2]);
+    } else {
+        cushion = 1.0f;
+    }
+    std::cout << "cushion = " << cushion << std::endl;
+
+    float tmax;
+    if (argc > 3) {
+        tmax = atof(argv[3]);
+    } else {
+        tmax = 0.7f;
+    }
+    std::cout << "tmax = " << tmax << std::endl;
+
+    double gmax; 
+    if (argc > 4) {
+        gmax = atof(argv[4]);
+    } else {
+        gmax = 45.0f;
+    }
+    std::cout << "gmax = " << gmax << std::endl;
+
+    double smax; 
+    if (argc > 5) {
+        smax = atof(argv[5]);
+    } else {
+        smax = 200.0f;
+    }
+    std::cout << "smax = " << smax << std::endl;
+
+    float resx;
+    if (argc > 6) {
+        resx = atof(argv[6]);
+    } else {
+        resx = 2.0f;
+    }
+    std::cout << "resx = " << resx << std::endl;
+
+    float resy;
+    if (argc > 7) {
+        resy = atof(argv[7]);
+    } else {
+        resy = 2.0f;
+    }
+    std::cout << "resy = " << resy << std::endl;
+
+    float resz;
+    if (argc > 8) {
+        resz = atof(argv[8]);
+    } else {
+        resz = 3.0f;
+    }
+    std::cout << "resz = " << resz << std::endl;
+
+    float venc;
+    if (argc > 9) {
+        venc = atof(argv[9]);
+    } else {
+        venc = 160.0f;
+    }
+    std::cout << "venc = " << venc << std::endl;
+
+    int Ny;
+    if (argc > 10) {
+        Ny = atoi(argv[10]);
+    } else {
+        Ny = 160;
+    }
+    std::cout << "Ny = " << Ny << std::endl;
+
+    int Nz;
+    if (argc > 11) {
+        Nz = atoi(argv[11]);
+    } else {
+        Nz = 32;
+    }
+    std::cout << "Nz = " << Nz << std::endl;
+
+    // ----- Start of real code -----
+
+    // This is for asymmetric echo, it not should not (does not need to be) hard-coded
+    resx *= 2.0;
+
+    char filename [100];
+    int n;
+    n = sprintf (filename, "grad_bipolar_%.2f_%.2f_%.2f_%.2f_ss%.2f_c%.2f_t%.2f_g%.2f_s%.2f_Ny%d_Nz%d.raw", 
+                            resx, resy, resz, venc, ss_m0, cushion, tmax, gmax, smax, Ny, Nz);
+    std::ofstream myFile (filename, std::ios::out | std::ios::binary);
+
+    std::cout << filename << std::endl;
+
+    float moments[4];
+    moments[0] = 11.74 * 1.0 / resx;
+    moments[1] = 11.74 * 1.0 / resy;
+    moments[2] = 11.74 * 1.0 / resz;
+    moments[3] = 7.33 * 80.0 / venc;
+
+    float m1_params[4];
+
+    get_m1params_v4(moments, gmax, smax, tmax, m1_params, false);
+
+    std::cout << "moments = " << moments[0] << " " << moments[1] << " " << moments[2] << " " << moments[3] << std::endl;
+    std::cout << "m1_params = " << m1_params[0] << " " << m1_params[1] << " " << m1_params[2] << " " << m1_params[3] << std::endl;
+
+    int n_iter = 2000;
+    double resid = 0.0;
+    double dt = 40.0e-3;
+
+    double line_c = 0.0;
+    double par_c = 0.0;
+
+    Matrix<double,4,3>  E;   
+    
+    E << -1, 1, -1,
+        -1, 1, 1,
+        -1, -1, -1,
+        1, 1, -1;
+
+    E *= 7.33 * 80.0 / venc;
+
+    std::cout << "E:" << std::endl << E << std::endl << std::endl;
+
+    int N_in; 
+    N_in = m1_params[3];
+        
+    // if (argc > 5) {
+    //     N_in = atoi(argv[5]);
+    // } else {
+    //     N_in = 100;
+    // }
+    // if (N_in < 0) {
+    //     N_in = m1_params[5];
+    // }
+    // std::cout << "N_in = " << N_in << std::endl;
+
+    int N = (int)N_in + 1;
+
+    int N_slew = 10.0 * 10e-3 / dt;
+    N_slew -= 1;
+
+    
+    
+
+    double* G_in;
+    G_in = new double [10000];
+
+    double* G_out;
+    G_out = new double [10000];
+
+    double* G_0;
+    G_0 = new double [10000];
+    for (int i = 0; i < N*3*4; i++) {
+        G_0[i] = 0.0;
+    }
+
+    double* G_1;
+    G_1 = new double [10000];
+    for (int i = 0; i < N*3*4; i++) {
+        G_1[i] = 0.0;
+    }
+
+    double moments_in[6];
+    Matrix<double,3,1>  lin_par;
+    Matrix<double,3,1>  d_M0;
+    Matrix<double,3,1>  d_M1;
+    Matrix<double,3,1>  m1_mod;
+    Matrix<double,3,1>  init_m0; 
+    init_m0 << moments[0], moments[1], moments[2];
+
+    bool error_flag = false;
+
+    float Nf = (float) 4 * (N-2*N_slew-1) + 1;
+
+    float* header_vals = new float [32];
+
+    header_vals[0] = Nf;
+    header_vals[1] = Ny;
+    header_vals[2] = Nz;
+
+    for (int i = 0; i < 32; i++) {
+        float write_temp = header_vals[i];
+        myFile.write ((char*) &write_temp, sizeof(float));
+    }
+    
+    float Ny2 = (double) Ny / 2.0;
+    float Nz2 = (double) Nz / 2.0;
+
+    bool still_working = true;
+
+    while (still_working) {
+        std::cout << "Testing N = " << N << std::endl;
+
+        Nf = Nf = (float) 4 * (N-2*N_slew-1) + 1;
+
+        header_vals[0] = Nf;
+        header_vals[1] = Ny;
+        header_vals[2] = Nz;
+
+        myFile.seekp (0);
+
+        for (int i = 0; i < 32; i++) {
+            float write_temp = header_vals[i];
+            myFile.write ((char*) &write_temp, sizeof(float));
+        }
+
+        for (int i = 0; i < N*3*4; i++) {
+            G_0[i] = 0.0;
+        }
+
+        for (int i = 0; i < N*3*4; i++) {
+            G_1[i] = 0.0;
+        }
+
+        error_flag = false;
+
+        for (int part = 0; part < Nz; part++) {
+            if (error_flag) break;
+            for (int line = 0; line < Ny; line++) {
+                if (error_flag) break;
+
+                line_c = -(Ny2-line) / Ny2;
+                par_c = -(Nz2-part) / Nz2;
+
+                m1_mod << m1_params[0], line_c * m1_params[1], par_c * m1_params[2];
+                
+                lin_par << -1.0, line_c, par_c;
+                d_M0 = init_m0.array() * lin_par.array();
+
+                d_M0(2) -= ss_m0;
+
+                for (int ie =0; ie < 4; ie++) {
+                    
+                    // std::cout << "E:   " << std::endl << E.row(ie).transpose().array() << std::endl;
+                    // std::cout << "m1:   " << std::endl << m1_mod.array() << std::endl;
+
+                    d_M1 = E.row(ie).transpose().array() + m1_mod.array();
+
+                    // std::cout << "d_M1:   " << std::endl << d_M1 << std::endl;
+                    
+
+                    if (line == 0) {
+                        for (int i = 0; i < N*3; i++) {
+                            G_in[i] = G_0[i + ie*N*3];
+                        }
+                    } else {
+                        for (int i = 0; i < N*3; i++) {
+                            G_in[i] = G_1[i + ie*N*3];
+                        }
+                    }
+                    
+                    moments_in[0] = d_M0(0); moments_in[1] = d_M1(0);
+                    moments_in[2] = d_M0(1); moments_in[3] = d_M1(1);
+                    moments_in[4] = d_M0(2); moments_in[5] = d_M1(2);
+
+                    opt3(N, dt, G_in, G_out, &resid, moments_in, n_iter, cushion, gmax, smax, tmax);
+                    
+                    if (resid > .01) {
+                        std::cout << std::endl << "ERROR: Line, Part: " << line << ", " << part << " resid too high = " << resid << std::endl << std::endl;
+
+                        std::cout << dt << " " << n_iter << " " << cushion << " " << gmax << " " << smax << " " << tmax << " " << std::endl;
+
+                        std::cout << "moments_in = " << moments_in[0] << " " << moments_in[1] << " " << moments_in[2] << " " << moments_in[3] << " " << moments_in[4] << " " << moments_in[5] << std::endl;
+
+                        error_flag = true;
+
+                        N += 1;
+
+                        break;
+                    }
+
+                    if (line == 0) {
+                        for (int i = 0; i < N*3; i++) {
+                            G_0[i + ie*N*3] = G_out[i];
+                        }
+                    } 
+
+                    for (int i = 0; i < N*3; i++) {
+                        G_1[i + ie*N*3] = G_out[i];
+                    }
+
+                    for (int j = 0; j < 3; j++) {
+                        for (int i = N_slew; i < N-N_slew-1; i++) {
+                            float gint0 = G_out[i + j*N];
+                            float gint1 = G_out[i + j*N + 1];
+                            for (int k = 0; k < 4; k++) {
+                                float write_temp = (float)  (gint0 * (4.0-k)/4.0 + gint1 * ((float)k)/4.0);
+                                myFile.write ((char*) & write_temp, sizeof(float));
+                            }
+                        }
+                        float write_temp = (float) G_out[N-N_slew-1 + j*N];
+                        myFile.write ((char*) & write_temp, sizeof(float));
+                    }
+                }
+            }
+            if ((part % 10) == 0) {
+                std::cout << d_M0.transpose() << std::endl;
+                std::cout << d_M1.transpose() << std::endl;
+                std::cout << N << "  Part = " << part << "   resid = " << resid << std::endl << std::endl;
+            }
+        }
+        if (error_flag == false) {still_working = false;}
+    }
+
+    myFile.close();
+
+    std::cout << "EXITING" << std::endl;
+
+    return 0;
+}
+
+
+/*
+
 int main(int argc, char *argv[])
 {
     std::cout << " --- Standalone Execution --- " << argc << std::endl;
@@ -910,3 +1238,5 @@ int main(int argc, char *argv[])
 
     return 0;
 }
+
+*/
